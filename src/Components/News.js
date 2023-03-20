@@ -2,82 +2,101 @@ import React, { Component } from 'react'
 import Newsitem from './Newsitem'
 import Spinner from './Spinner';
 import PropTypes from 'prop-types'
+import InfiniteScroll from "react-infinite-scroll-component";
 
 export class News extends Component {
-  static defaultProps = {
-    country:'in',
-    pageSize:8,
-    category:'general'
-  }
-  capitalizeFirstLetter=(string)=>{
-    return string.charAt(0).toUpperCase()+string.slice(1);
-  }
-  static propTypes = {
-    country:PropTypes.string,
-    pageSize:PropTypes.number,
-    category:PropTypes.string
-  }
-    articles = [ ]
+    static defaultProps = {
+        country: 'in',
+        pageSize: 8,
+        category: 'general',
+    }
 
-    constructor(props){
+    static propTypes = {
+        country: PropTypes.string,
+        pageSize: PropTypes.number,
+        category: PropTypes.string,
+    }
+    capitalizeFirstLetter = (string) => {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+    constructor(props) {
         super(props);
-   
         this.state = {
-            articles: this.articles,
-            loading: false,
-            page: 1
+            articles: [],
+            loading: true,
+            page: 1,
+            totalResults: 0
         }
-        document.title=`${this.capitalizeFirstLetter(this.props.category=="general"?"Home":this.props.category)} - LagatarNews`;
+        document.title = `${this.capitalizeFirstLetter(this.props.category)} - LagatarNews`;
     }
 
-    async updateNews(){
-      this.setState({loading: true});
-      let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=0d723e870d5c45aeb8c096bff7cf9115&page=${this.state.page}&pageSize=${this.props.pageSize}`;
-      let data = await fetch(url);
-      let parsedData = await data.json()
-     
-      this.setState({
-          totalResults:parsedData.totalResults,
-          articles: parsedData.articles,
-          loading:false
-      })
+    async updateNews() {
+        this.props.setProgress(10);
+        const url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=${this.props.apiKey}&page=${this.state.page}&pageSize=${this.props.pageSize}`;
+        this.setState({ loading: true });
+        let data = await fetch(url);
+        this.props.setProgress(30);
+        let parsedData = await data.json()
+        this.props.setProgress(70);
+        this.setState({
+            articles: parsedData.articles,
+            totalResults: parsedData.totalResults,
+            loading: false, 
+        })
+        this.props.setProgress(100);
     }
-    async componentDidMount(){
-     this.updateNews();
+    async componentDidMount() {
+        this.updateNews();
     }
 
     handlePrevClick = async () => {
-      this.setState({page:this.state.page-1});
-      this.updateNews();
-  }
-    handleNextClick = async () => {
-      this.setState({page:this.state.page+1});
-      this.updateNews();
-  }
-  render() {
-    return (
-      <>
-      <div className="container my-3">
-        <div className="component" >
-        <h1 className='text-center'>LagatarNews - Top {this.capitalizeFirstLetter(this.props.category)=="General"?"":this.capitalizeFirstLetter(this.props.category)} headlines</h1>
-        {this.state.loading && <Spinner/>}
-        <div className="row my-5">
-        {!this.state.laoding && this.state.articles.map((ele)=>{
-          return <div className="col-md-4">
-          <Newsitem title={ele.title?ele.title.slice(0,40)+"...":""} description={ele.description?ele.description.slice(0,88)+"...":""} imageUrl={ele.urlToImage?ele.urlToImage:"https://thumbs.dreamstime.com/b/news-newspapers-folded-stacked-word-wooden-block-puzzle-dice-concept-newspaper-media-press-release-42301371.jpg"} author={ele.author} date={ele.publishedAt} newsUrl={ele.url} source={ele.source.name}/>
-          </div>
-        })}
-            </div>
-      </div>
-      </div>
-      <div className="Container d-flex justify-content-around">
-      <button disabled={this.state.page<=1}type="button" className="btn btn-primary my-3" onClick={this.handlePrevClick}>&larr; Prev</button>
-      <button type="button" className="btn btn-primary my-3" onClick={this.handleNextClick}>Next &rarr;</button>
-      </div>
-      </>
-    )
-  }
-}
+        this.setState({ page: this.state.page - 1 });
+        this.updateNews();
+    }
 
+    handleNextClick = async () => {
+        this.setState({ page: this.state.page + 1 });
+        this.updateNews()
+    }
+
+    fetchMoreData = async () => {  
+        this.setState({page: this.state.page + 1})
+        const url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=${this.props.apiKey}&page=${this.state.page}&pageSize=${this.props.pageSize}`;
+        let data = await fetch(url);
+        let parsedData = await data.json()
+        this.setState({
+            articles: this.state.articles.concat(parsedData.articles),
+            totalResults: parsedData.totalResults
+        })
+      };
+
+    render() {
+        return (
+            <>
+                <h1 className='text-center'>LagatarNews - Top {this.capitalizeFirstLetter(this.props.category)=="General"?"":this.capitalizeFirstLetter(this.props.category)} headlines</h1>
+        {/* {this.state.loading && <Spinner/>} */}
+                {this.state.loading && <Spinner />}
+                <InfiniteScroll
+                    dataLength={this.state.articles.length}
+                    next={this.fetchMoreData}
+                    hasMore={this.state.articles.length !== this.state.totalResults}
+                    loader={<Spinner/>}
+                > 
+                    <div className="container">
+                         
+                    <div className="row">
+                        {this.state.articles.map((element) => {
+                            return <div className="col-md-4" key={element.url}>
+                                <Newsitem title={element.title ? element.title : ""} description={element.description ? element.description : ""} imageUrl={element.urlToImage?element.urlToImage:"https://thumbs.dreamstime.com/b/news-newspapers-folded-stacked-word-wooden-block-puzzle-dice-concept-newspaper-media-press-release-42301371.jpg"} newsUrl={element.url} author={element.author} date={element.publishedAt} source={element.source.name} />
+                            </div>
+                        })}
+                    </div>
+                    </div> 
+                </InfiniteScroll>
+
+            </>
+        )
+    }
+}
 
 export default News
