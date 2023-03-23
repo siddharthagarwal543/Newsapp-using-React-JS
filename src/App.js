@@ -2,7 +2,6 @@
 import './App.css';
 
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
 import NavBar from './Components/NavBar';
 import News from './Components/News';
 import LoadingBar from 'react-top-loading-bar';
